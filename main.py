@@ -270,6 +270,8 @@ def sess_pyqs():
             
         }
     
+    sess_ops = ["Sessional 1", "Sessional 2", "Sessional 3"]
+
     # Search bar
     search_query = st.text_input("🔍 Search PYQs", "")
     pyqs = storage.get_data("sessional_pyqs")
@@ -284,6 +286,8 @@ def sess_pyqs():
             with st.expander(f"**Subject:** {each['subject']}"):
                 st.write(f"Remarks: {each['desc']}")
                 st.write(f"**Year:** {each['year']}")
+                st.write(f"**Sessional:** {each['sess_no']}")
+                
 
                 formatted_time = format_timestamp(each['created_at'])
                 st.write(f"Upload Date: {formatted_time}")
@@ -308,6 +312,7 @@ def sess_pyqs():
     
     
     year = st.selectbox("Select Year", list(year_ops.keys()))
+    sess_no = st.selectbox("Select Sessional", sess_ops)
     subject = st.text_input("Enter Subject Name")
     note_text = st.text_area("Remarks/Suggestions (Optional)")
     pdf_pyq = st.file_uploader("Upload PDF", type=["pdf"])
@@ -323,6 +328,7 @@ def sess_pyqs():
 
             pyq_data = {
                 "year": year_ops[year],
+                "sess_no": sess_no,
                 "subject": subject,
                 "desc": note_text,
                 "pdf_file": url,
