@@ -172,7 +172,11 @@ def notes():
 
         for each in reversed(filtered_notes):
             with st.expander(f"**Subject:** {each['subject_name']}"):
-                st.write(f"Remarks: {each['remarks']}")
+                remarks = str(each['remarks']).splitlines()
+                st.write("**Remarks:**")
+                for line in remarks:
+                    st.write(f"- {line}")
+
                 st.write(f"**Year:** {each['year']}")
 
                 if each["pdf_file"]:
@@ -195,7 +199,7 @@ def notes():
     
     year = st.selectbox("Select Year", list(year_ops.keys()))
     subject = st.text_input("Enter Subject Name")
-    note_text = st.text_area("Remarks/Suggestions (Optional)")
+    note_text = st.text_area("Remarks/Suggestions (Optional)", placeholder="Type your remarks here... Press Enter for a new line.")
     pdf_note = st.file_uploader("Upload PDF Note", type=["pdf"])
     save_note = st.button("Upload Notes")
 
@@ -284,7 +288,11 @@ def sess_pyqs():
 
     for each in reversed(filtered_pyqs):
             with st.expander(f"**Subject:** {each['subject']}"):
-                st.write(f"Remarks: {each['desc']}")
+                remarks = str(each['desc']).splitlines()
+                st.write("**Remarks:**")
+                for line in remarks:
+                    st.write(f"- {line}")
+
                 st.write(f"**Year:** {each['year']}")
                 st.write(f"**Sessional:** {each['sess_no']}")
                 
@@ -314,7 +322,7 @@ def sess_pyqs():
     year = st.selectbox("Select Year", list(year_ops.keys()))
     sess_no = st.selectbox("Select Sessional", sess_ops)
     subject = st.text_input("Enter Subject Name")
-    note_text = st.text_area("Remarks/Suggestions (Optional)")
+    note_text = st.text_area("Remarks/Suggestions (Optional)", placeholder="Type your remarks here... Press Enter for a new line.")
     pdf_pyq = st.file_uploader("Upload PDF", type=["pdf"])
     save_pdf = st.button("Upload PYQ")
 
