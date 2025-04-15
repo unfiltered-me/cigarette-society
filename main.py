@@ -17,7 +17,6 @@ ga_code = """
 </script>
 """
 
-
 def home():
     st.subheader("Welcome to our Community! 🎓")
     # st.image("./welcome.gif", width=400)
@@ -73,6 +72,14 @@ Stay in the loop without digging through 15 group chats. Get real-time updates f
 
 def assignments():
     st.subheader("📌 Solved Assignments")
+    year_ops = {
+            "1st Year": 1,
+            "2nd Year": 2,
+            "3rd Year": 3,
+            "4th Year": 4
+            
+        }
+    
     # Search bar
     search_query = st.text_input("🔍 Search Assignments", "")
     assignments = storage.get_data("assignments")
@@ -86,6 +93,8 @@ def assignments():
         for assignment in reversed(filtered_assignments):
             with st.expander(assignment["title"]):
                 st.write(f"**Subject:** {assignment['subject']}")
+                st.write(f"**Year:** {assignment['year']}")
+
                 formatted_time = format_timestamp(assignment['created_at'])
                 st.write(f"Upload Date: {formatted_time}")
 
@@ -108,36 +117,48 @@ def assignments():
 
     st.subheader("📃 Upload Assignment Solutions")
     with st.form("add_assignment"):
+        year = st.selectbox("Select Year", list(year_ops.keys()))
         title = st.text_input("Assignment Title")
         subject = st.text_input("Subject")
         
         pdf_file = st.file_uploader("Upload PDF", type=["pdf"])
         submit = st.form_submit_button("Upload Assignment")
 
-        if submit and title and subject:
-            if pdf_file:
-                file_name = storage.upload_file(pdf_file.read(), pdf_file.name, 'assignments')
-                url = storage.get_file_url(file_name, "assignments")
+        if submit and title and year:
+            if subject:
+                if pdf_file:
+                    file_name = storage.upload_file(pdf_file.read(), pdf_file.name, 'assignments')
+                    url = storage.get_file_url(file_name, "assignments")
 
-                assignment_data = {
-                    "title": title,
-                    "subject": subject,
-                    "pdf_file": url,
-                    "file_name": file_name
-                }
+                    assignment_data = {
+                        "year": year_ops[year],
+                        "title": title,
+                        "subject": subject,
+                        "pdf_file": url,
+                        "file_name": file_name
+                    }
 
-                res = storage.insert_data(assignment_data, "assignments")
-                if res:
-                    st.success('Assignment uploaded successfully!', icon='🎉')
+                    res = storage.insert_data(assignment_data, "assignments")
+                    if res:
+                        st.success('Assignment uploaded successfully!', icon='🎉')
+                    else:
+                        st.error("❌ Error uploading Assignment!")
                 else:
-                    st.error("❌ Error uploading Assignment!")
+                    st.error(":warning: Please upload a PDF file!")
             else:
-                st.error(":warning: Please upload a PDF file!")
-
+                st.error(":warning: Please enter subject name!")
 
 def notes():
     st.subheader("📒 Subject Notes")
 
+    year_ops = {
+            "1st Year": 1,
+            "2nd Year": 2,
+            "3rd Year": 3,
+            "4th Year": 4
+            
+        }
+    
     # Search bar
     search_query = st.text_input("🔍 Search Notes", "")
     notes = storage.get_data("notes")
@@ -152,6 +173,7 @@ def notes():
         for each in reversed(filtered_notes):
             with st.expander(f"**Subject:** {each['subject_name']}"):
                 st.write(f"Remarks: {each['remarks']}")
+                st.write(f"**Year:** {each['year']}")
 
                 if each["pdf_file"]:
                     res = requests.get(each['pdf_file'])
@@ -171,12 +193,13 @@ def notes():
 
     st.subheader("🗂️ Upload Notes")
     
+    year = st.selectbox("Select Year", list(year_ops.keys()))
     subject = st.text_input("Enter Subject Name")
     note_text = st.text_area("Remarks/Suggestions (Optional)")
     pdf_note = st.file_uploader("Upload PDF Note", type=["pdf"])
     save_note = st.button("Upload Notes")
 
-    if save_note and subject:
+    if save_note and subject and year:
         if pdf_note:
             # Upload the PDF note to Supabase
             pdf_data = pdf_note.read()
@@ -185,6 +208,7 @@ def notes():
             url = storage.get_file_url(file_name, 'notes')
 
             notes_data = {
+                "year": year_ops[year],
                 "subject_name": subject,
                 "remarks": note_text,
                 "pdf_file": url,
@@ -238,7 +262,14 @@ def announcements():
 def sess_pyqs():
     st.subheader("📘 Sessional PYQs")
    
-
+    year_ops = {
+            "1st Year": 1,
+            "2nd Year": 2,
+            "3rd Year": 3,
+            "4th Year": 4
+            
+        }
+    
     # Search bar
     search_query = st.text_input("🔍 Search PYQs", "")
     pyqs = storage.get_data("sessional_pyqs")
@@ -252,6 +283,8 @@ def sess_pyqs():
     for each in reversed(filtered_pyqs):
             with st.expander(f"**Subject:** {each['subject']}"):
                 st.write(f"Remarks: {each['desc']}")
+                st.write(f"**Year:** {each['year']}")
+
                 formatted_time = format_timestamp(each['created_at'])
                 st.write(f"Upload Date: {formatted_time}")
 
@@ -273,12 +306,14 @@ def sess_pyqs():
 
     st.subheader("🗂️ Upload PYQs")
     
+    
+    year = st.selectbox("Select Year", list(year_ops.keys()))
     subject = st.text_input("Enter Subject Name")
     note_text = st.text_area("Remarks/Suggestions (Optional)")
     pdf_pyq = st.file_uploader("Upload PDF", type=["pdf"])
     save_pdf = st.button("Upload PYQ")
 
-    if subject and save_pdf:
+    if subject and save_pdf and year:
         if pdf_pyq:
             # Upload the PDF to Supabase
             pdf_data = pdf_pyq.read()
@@ -287,6 +322,7 @@ def sess_pyqs():
             url = storage.get_file_url(file_name, 'sessional_pyqs')
 
             pyq_data = {
+                "year": year_ops[year],
                 "subject": subject,
                 "desc": note_text,
                 "pdf_file": url,
