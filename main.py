@@ -544,7 +544,7 @@ st.title("👾 Cigarette Society")
 
 with st.sidebar:
     
-    st.image("./animation.gif", width=150)
+    st.image("https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExMWV5c2RiZmM2ajk5Nmd5ejdoOHZvb3BwZ2I2anMzaXlwMGNybzZ3aSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ukwPlCmJ5RmlqvQCpA/giphy.gif", width=150)
     st.markdown("## 🎓 Cigarette Society")
     st.markdown("---")
 
