@@ -1,8 +1,8 @@
 import streamlit as st
-import supabase, requests, random, datetime
+import supabase, requests, random, datetime, hashlib, logging
 from supabase_helper import SupabaseStorage
 import streamlit.components.v1 as components
-
+from dateutil import parser
 
 # Google Analytics Code
 ga_code = """
@@ -16,6 +16,57 @@ ga_code = """
   gtag('config', 'G-K73LNWTHQB');
 </script>
 """
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+
+def get_user_ip():
+    try:
+        ip = requests.get("https://api.ipify.org").text
+        return ip
+    except:
+        return "Unknown"
+    
+
+def generate_md5_hash(input_string):
+    # Encode the input string to bytes
+    encoded = input_string.encode()
+    
+    # Create the MD5 hash object
+    md5_hash = hashlib.md5(encoded)
+    
+    # Return the raw (hexadecimal) digest
+    return md5_hash.hexdigest()
+
+def login():
+    st.title("🔐 Admin Login")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    password_hash = generate_md5_hash(password)
+    login_button = st.button("Login")
+
+    if login_button:
+        user_ip = get_user_ip()
+        data = storage.get_username_password_data(username, password_hash, "users") 
+        if data:
+            st.session_state.logged_in = True
+            st.session_state.username = data['username']
+            st.session_state.role = data['role']
+            st.success(f"✅ Successfully, Logged in as {st.session_state.username}!")
+            logging.critical(f"✅ Admin login successful: {username} | IP: {user_ip}")
+        else:
+            st.error("❌ Invalid credentials")
+            logging.warning(f"❌ Failed login attempt for user: {username} | IP: {user_ip}")
+
+
+# Main
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
 
 def home():
     st.subheader("Welcome to our Community! 🎓")
@@ -111,7 +162,15 @@ def assignments():
                         )
                     else:
                         st.error("Failed to retrieve PDF!")
-    
+
+                # Delete button
+                if (st.session_state.logged_in ==True) and (st.session_state.role == "admin"):
+                    delete_button = st.button(f"🚮 Delete Assignment", key=f"delete-button-{assignment['id']}")
+                    if delete_button:
+                        if storage.delete_record(table_name="assignments", column="id", value=assignment["id"]):
+                            st.success("Assignment deleted successfully!", icon="🎉")
+                        else:
+                            st.error("Failed to delete assignment!", icon="❌")
 
     st.markdown("---")
 
@@ -192,6 +251,16 @@ def notes():
                         )
                     else:
                         st.error("Failed to retrieve PDF!")
+
+                # Delete button
+                if (st.session_state.logged_in ==True) and (st.session_state.role == "admin"):
+                    delete_button = st.button(f"🚮 Delete Notes", key=f"delete-button-{each['id']}")
+                    if delete_button:
+                        data = storage.delete_record(table_name="notes", column="id", value=each["id"])
+                        if data:
+                            st.success("Notes deleted successfully!", icon="🎉")
+                        else:
+                            st.error("Failed to delete notes!", icon="❌")
     
     st.markdown("---")
 
@@ -236,6 +305,15 @@ def announcements():
         for idx, a in enumerate(reversed(supabase_data)):
             st.info(f"📢 **{a['title']}**")
             st.caption(a["desc"])
+
+            # Delete button
+            if (st.session_state.logged_in ==True) and (st.session_state.role == "admin"):
+                delete_button = st.button(f"🚮 Delete Announcement", key=f"delete-button-{a['id']}")
+                if delete_button:
+                    if storage.delete_record(table_name="announcements", column="id", value=a["id"]):
+                        st.success("Announcement deleted successfully!", icon="🎉")
+                    else:
+                        st.error("Failed to delete announcement!", icon="❌")
             
     else:
         st.error("No announcements found")
@@ -313,6 +391,15 @@ def sess_pyqs():
                         )
                     else:
                         st.error("Failed to retrieve PDF!")
+
+                # Delete button
+                if (st.session_state.logged_in ==True) and (st.session_state.role == "admin"):
+                    delete_button = st.button(f"🚮 Delete PYQ", key=f"delete-button-{each['id']}")
+                    if delete_button:
+                        if storage.delete_record(table_name="sessional_pyqs", column="id", value=each["id"]):
+                            st.success("PYQ deleted successfully!", icon="🎉")
+                        else:
+                            st.error("Failed to delete pyq!", icon="❌")
                     
     st.markdown("---")
 
@@ -509,6 +596,114 @@ def rating():
 
 
 
+def quantum_pdf():
+    st.subheader("📚 Quantum PDFs")
+    year_ops = {
+        "1st Year": 1,
+        "2nd Year": 2,
+        "3rd Year": 3,
+        "4th Year": 4
+        
+    }
+    
+    if (st.session_state.logged_in) and (st.session_state.role == "admin"):
+        # Book upload form
+        with st.form("upload_form"):
+            title = st.text_input("Book Title")
+            year = st.selectbox("Select Year", list(year_ops.keys()))
+            
+            cover_file = st.file_uploader("Upload Cover Image", type=["png", "jpg", "jpeg"])
+            pdf_file = st.file_uploader("Upload PDF File", type=["pdf"])
+
+            submit = st.form_submit_button("📤 Upload Book")
+
+        # On form submit
+        if submit:
+            if not (title and cover_file and pdf_file):
+                st.warning("Please fill all fields.")
+            else:
+                try:
+                    # Upload cover to Supabase Storage
+                    image_data = cover_file.read()
+                    image_name = cover_file.name
+                    image_file_name = storage.upload_file(image_data, image_name, "quantum_cover")
+                    cover_url = storage.get_file_url(image_file_name, "quantum_cover")
+
+                    # Upload PDF to Supabase Storage
+                    pdf_data = pdf_file.read()
+                    pdf_name = pdf_file.name
+                    pdf_file_name = storage.upload_file(pdf_data, pdf_name, "quantum_pdf")
+                    pdf_url = storage.get_file_url(pdf_file_name, "quantum_pdf")
+
+
+
+                    # Insert into Supabase table
+                    data = {
+                        "title": title,
+                        "cover": cover_url,
+                        "pdf_url": pdf_url,
+                        "year": year_ops[year]
+                    }
+                    
+                    storage.insert_data(data, "quantum_books")
+
+                    st.success("✅ Book uploaded successfully!")
+                    st.image(cover_url, caption="Uploaded Cover", width=300)
+
+                except Exception as e:
+                    st.error(f"❌ Error uploading book: {e}")
+        
+        st.markdown("---")
+
+    quantum_books = storage.get_data("quantum_books")
+    
+    
+    year = st.selectbox("Select Year", list(year_ops.keys()))
+    st.markdown("---")
+    
+    if year:
+        quantum_books = [x for x in quantum_books if x['year'] == year_ops[year]]
+
+        if quantum_books:
+            # Display books in a 4-column grid
+            cols = st.columns(4)
+
+            for idx, book in enumerate(quantum_books):
+                col = cols[idx % 4]
+                with col:
+                    st.image(book["cover"], width=300)
+                    st.markdown(f"**{book['title']}**", unsafe_allow_html=True)
+
+                    if book["pdf_url"]:
+                        res = requests.get(book['pdf_url'])
+                        if res.status_code == 200:
+                            pdf_data = res.content
+                            st.download_button(
+                                label="📄 Download PDF",
+                                data=pdf_data,
+                                file_name=f"{book['title']}_quantum.pdf",
+                                mime="application/pdf",
+                                key=f"download-button-{book['title']}-{book['id']}"
+                            )
+                        else:
+                            st.error("Failed to retrieve PDF!")
+
+                    # Delete button
+                    if (st.session_state.logged_in ==True) and (st.session_state.role == "admin"):
+                        delete_button = st.button(f"🚮 Delete Quantum", key=f"delete-button-{book['id']}")
+                        if delete_button:
+                            if storage.delete_record(table_name="quantum_books", column="id", value=book["id"]):
+                                st.success("Quantum deleted successfully!", icon="🎉")
+                            else:
+                                st.error("Failed to delete quantum!", icon="❌")
+
+                # Create new row every 4 quantum_books
+                if (idx + 1) % 4 == 0 and (idx + 1) != len(quantum_books):
+                    st.markdown("---")
+                    cols = st.columns(4)
+        else:
+            st.error("No quantum books available")
+
 
 # ------------------------------------- MAIN ----------------------------------------
 
@@ -520,25 +715,24 @@ st.set_page_config(
 )
 
 
-# India Standard Time offset
 IST_OFFSET = datetime.timedelta(hours=5, minutes=30)
 IST = datetime.timezone(IST_OFFSET)
 
 def format_timestamp(timestamp_str):
-    # Parse ISO timestamp, assume it's in UTC (Z = UTC)
-    utc_time = datetime.datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+    # Parse ISO timestamp
+    utc_time = parser.isoparse(timestamp_str)
+
     # Convert to IST
     ist_time = utc_time.astimezone(IST)
+
     # Format it nicely
     return ist_time.strftime("%B %d, %Y – %I:%M %p IST")
 
-# Inject into the app (height=0 makes it invisible)
+
 components.html(ga_code, height=0)
 
 
-# Set up your Supabase instance
 storage = SupabaseStorage(st.secrets['SUPABASE_URL'], st.secrets['SUPABASE_KEY'])
-
 st.title("👾 Cigarette Society")
 
 
@@ -550,12 +744,13 @@ with st.sidebar:
 
     menu = st.radio(
         "Choose Section",
-        ["🏠 Home", "📝 Solved Assignments", "📒 Notes", "📘 Sessional PYQs", "🤩 Rate your professors", "📢 Announcements", "🌟 Rate Us"],
+        ["🏠 Home", "🔐 Admin Login", "📝 Solved Assignments", "📒 Notes", "📘 Sessional PYQs", "📚 Quantum PDF", "🤩 Rate your professors", "📢 Announcements", "🌟 Rate Us"],
         label_visibility="collapsed"
     )
 
 
     st.markdown("---")
+
     color_ops = ['blue', 'red', 'violet', 'green', 'rainbow']
     
     st.markdown(f"Made with ❤️ by :{random.choice(color_ops)}[Madhav]")
@@ -563,8 +758,12 @@ with st.sidebar:
     st.markdown(spotify_markdown)
     
 
+
+if menu == "🔐 Admin Login":
+    login()
+
 # ---------------- HOME ----------------
-if menu == "🏠 Home":
+elif menu == "🏠 Home":
     home()
 
 # ---------------- ASSIGNMENTS ----------------
@@ -582,7 +781,7 @@ elif menu == "📘 Sessional PYQs":
 # ---------------- ANNOUNCEMENTS ----------------
 elif menu == "📢 Announcements":
     announcements()
- 
+
 
 # ---------------- FEEDBACK FORM ----------------
 elif menu == "🤩 Rate your professors":
@@ -591,3 +790,11 @@ elif menu == "🤩 Rate your professors":
 # ---------------- RATE US ----------------
 elif menu == "🌟 Rate Us":
     rating()
+
+
+elif menu == "📚 Quantum PDF":
+    quantum_pdf()
+
+else:
+    login()
+
