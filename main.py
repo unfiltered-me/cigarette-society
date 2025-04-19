@@ -132,15 +132,12 @@ def assignments():
         }
     
     # Search bar
-    search_query = st.text_input("🔍 Search Assignments", "")
+    year = st.selectbox("Select Year", list(year_ops.keys()), key="assignments_year")
     assignments = storage.get_data("assignments")
 
-    if assignments:
-        if search_query:
-            filtered_assignments = [assignment for assignment in assignments if search_query.strip().lower() in (assignment['subject'].lower() or assignment['title'].lower())]
-        else:
-            filtered_assignments = assignments
+    filtered_assignments = [x for x in assignments if x['year'] == year_ops[year]]
         
+    if filtered_assignments:
         for assignment in reversed(filtered_assignments):
             with st.expander(assignment["title"]):
                 st.write(f"**Subject:** {assignment['subject']}")
@@ -171,6 +168,8 @@ def assignments():
                             st.success("Assignment deleted successfully!", icon="🎉")
                         else:
                             st.error("Failed to delete assignment!", icon="❌")
+    else:
+        st.error("No assignments found for this year!", icon="❌")
 
     st.markdown("---")
 
@@ -219,16 +218,12 @@ def notes():
         }
     
     # Search bar
-    search_query = st.text_input("🔍 Search Notes", "")
+    year = st.selectbox("Select Year", list(year_ops.keys()), key="notes_year")
     notes = storage.get_data("notes")
 
-    if notes:
-        if search_query.strip():
-            filtered_notes = [each for each in notes if search_query.strip().lower() in each['subject_name'].lower()]
-   
-        else:
-            filtered_notes = notes
-
+    filtered_notes = [x for x in notes if x['year'] == year_ops[year]]
+    
+    if filtered_notes:
         for each in reversed(filtered_notes):
             with st.expander(f"**Subject:** {each['subject_name']}"):
                 remarks = str(each['remarks']).splitlines()
@@ -261,7 +256,9 @@ def notes():
                             st.success("Notes deleted successfully!", icon="🎉")
                         else:
                             st.error("Failed to delete notes!", icon="❌")
-    
+    else:
+        st.error("No notes found for the selected year!", icon="❌")
+
     st.markdown("---")
 
     st.subheader("🗂️ Upload Notes")
@@ -354,53 +351,54 @@ def sess_pyqs():
     
     sess_ops = ["Sessional 1", "Sessional 2", "Sessional 3"]
 
-    # Search bar
-    search_query = st.text_input("🔍 Search PYQs", "")
     pyqs = storage.get_data("sessional_pyqs")
 
-    if search_query:
-        filtered_pyqs = [pyq for pyq in pyqs if search_query.strip().lower() in pyq['subject'].lower()]
-    else:
-        filtered_pyqs = pyqs
+    year = st.selectbox("Select Year", list(year_ops.keys()), key="sessional_year")
+    sessional = st.selectbox("Select Sessional", sess_ops, key="sessional_number")
 
+    filtered_pyqs = [x for x in pyqs if x['year'] == year_ops[year] and x['sess_no'] == sessional]
 
-    for each in reversed(filtered_pyqs):
-            with st.expander(f"**Subject:** {each['subject']}"):
-                remarks = str(each['desc']).splitlines()
-                st.write("**Remarks:**")
-                for line in remarks:
-                    st.write(f"- {line}")
+    if filtered_pyqs:
+        for each in reversed(filtered_pyqs):
+                with st.expander(f"**Subject:** {each['subject']}"):
+                    remarks = str(each['desc']).splitlines()
+                    st.write("**Remarks:**")
+                    for line in remarks:
+                        st.write(f"- {line}")
 
-                st.write(f"**Year:** {each['year']}")
-                st.write(f"**Sessional:** {each['sess_no']}")
-                
-
-                formatted_time = format_timestamp(each['created_at'])
-                st.write(f"Upload Date: {formatted_time}")
-
-                if each["pdf_file"]:
-                    res = requests.get(each['pdf_file'])
-                    if res.status_code == 200:
-                        pdf_data = res.content
-                        st.download_button(
-                            label="📄 Download PDF",
-                            data=pdf_data,
-                            file_name=f"{each['subject']}_pyq.pdf",
-                            mime="application/pdf",
-                            key=f"download-button-{each['subject']}-{each['id']}"
-                        )
-                    else:
-                        st.error("Failed to retrieve PDF!")
-
-                # Delete button
-                if (st.session_state.logged_in ==True) and (st.session_state.role == "admin"):
-                    delete_button = st.button(f"🚮 Delete PYQ", key=f"delete-button-{each['id']}")
-                    if delete_button:
-                        if storage.delete_record(table_name="sessional_pyqs", column="id", value=each["id"]):
-                            st.success("PYQ deleted successfully!", icon="🎉")
-                        else:
-                            st.error("Failed to delete pyq!", icon="❌")
+                    st.write(f"**Year:** {each['year']}")
+                    st.write(f"**Sessional:** {each['sess_no']}")
                     
+
+                    formatted_time = format_timestamp(each['created_at'])
+                    st.write(f"Upload Date: {formatted_time}")
+
+                    if each["pdf_file"]:
+                        res = requests.get(each['pdf_file'])
+                        if res.status_code == 200:
+                            pdf_data = res.content
+                            st.download_button(
+                                label="📄 Download PDF",
+                                data=pdf_data,
+                                file_name=f"{each['subject']}_pyq.pdf",
+                                mime="application/pdf",
+                                key=f"download-button-{each['subject']}-{each['id']}"
+                            )
+                        else:
+                            st.error("Failed to retrieve PDF!")
+
+                    # Delete button
+                    if (st.session_state.logged_in ==True) and (st.session_state.role == "admin"):
+                        delete_button = st.button(f"🚮 Delete PYQ", key=f"delete-button-{each['id']}")
+                        if delete_button:
+                            if storage.delete_record(table_name="sessional_pyqs", column="id", value=each["id"]):
+                                st.success("PYQ deleted successfully!", icon="🎉")
+                            else:
+                                st.error("Failed to delete pyq!", icon="❌")
+    else:
+        st.error("No PYQs found for the selected year and sessional!", icon="❌")
+
+
     st.markdown("---")
 
     st.subheader("🗂️ Upload PYQs")
@@ -739,7 +737,9 @@ st.title("👾 Cigarette Society")
 with st.sidebar:
     
     st.image("https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExMWV5c2RiZmM2ajk5Nmd5ejdoOHZvb3BwZ2I2anMzaXlwMGNybzZ3aSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ukwPlCmJ5RmlqvQCpA/giphy.gif", width=150)
-    st.markdown("## 🎓 Cigarette Society")
+    st.markdown('''## 🎓 Cigarette Society
+                हीरोगिरी फू फू करने में नहीं है...✌''')
+
     st.markdown("---")
 
     menu = st.radio(
