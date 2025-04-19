@@ -151,3 +151,36 @@ class SupabaseStorage:
             # Handle any errors that occur during data retrieval
             print(f"Error retrieving data: {e}")
             return None
+        
+    def get_username_password_data(self, username, password, table_name):
+        """
+        Get username and password data from a Supabase table.
+
+        Args:
+            table_name (str): The name of the table to retrieve data from.
+
+        Returns:
+            list: A list of dictionaries containing the username and password data.
+        """
+        try:
+            # Retrieve data from the Supabase table
+            supabase_data = self.supabase.from_(table_name).select("username", "password", "role").execute()
+            data = supabase_data.data
+
+            # Filter the data to find the record with the matching username and password
+            record = next((item for item in data if item["username"] == username and item["password"] == password), None)
+
+            return record
+        
+        except Exception as e:
+            # Handle any errors that occur during data retrieval
+            print(f"Error retrieving data: {e}")
+            return None
+        
+        
+    def delete_record(self, table_name, column, value):
+        try:
+            response = self.supabase.table(table_name).delete().eq(column, value).execute()
+            return response.data
+        except Exception as e:
+            print("❌ Error deleting record:", e)
